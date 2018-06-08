@@ -20,8 +20,6 @@ import org.apache.geode.cache.client.ClientCacheFactory;
 import org.apache.geode.cache.client.ClientRegionFactory;
 import org.apache.geode.cache.client.ClientRegionShortcut;
 
-import java.util.String;
-
 public class Example {
   public final String KEY = "entry";
 
@@ -45,9 +43,10 @@ public class Example {
   }
 
 
-  public ValueHolder putEntries(Region<String, ValueHolder> region) {
+  public ValueHolder putEntry(Region<String, ValueHolder> region) {
     ValueHolder valueHolder = new ValueHolder();
     region.put(KEY, valueHolder);
+    return valueHolder;
   }
 
   public void changeEntry(Region<String, ValueHolder> region, ValueHolder valueHolder) {
