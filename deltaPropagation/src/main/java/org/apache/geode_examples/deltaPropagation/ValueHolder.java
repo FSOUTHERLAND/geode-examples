@@ -12,83 +12,81 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-
 package org.apache.geode_examples.deltaPropagation;
 
 import org.apache.geode.Delta;
 import org.apache.geode.InvalidDeltaException;
 
-import java.io.*;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.io.Serializable;
 
 public class ValueHolder implements Delta, Serializable {
 
   private int intVal;
-  private String stringVal;
+  private transient boolean intChd = false;
 
-  private transient boolean intChanged = false;
-  private transient boolean strChanged = false;
+  private String strVal;
+  private transient boolean strChd = false;
 
   public ValueHolder() {
     this.intVal = 0;
-    this.stringVal = "";
+    this.strVal = "";
   }
 
 
   @Override
   public boolean hasDelta() {
-    return this.intChanged || this.strChanged;
+    return intChd || strChd;
   }
 
   @Override
   public void toDelta(DataOutput out) throws IOException {
-    System.out.println("Extracting delta from " + this.toString());
-    // Write information on what has changed to the
-    // data stream, so fromDelta knows what it's getting
-    out.writeBoolean(intChanged);
-    if (intChanged) {
-      // Write just the changes into the data stream
-      out.writeInt(this.intVal);
-      // Once the delta information is written, reset the delta status field
-      this.intChanged = false;
-      System.out.println(" Extracted delta from field 'intVal' = " + this.intVal);
+    out.writeBoolean(intChd);
+    if (intChd) {
+      out.writeInt(intVal);
     }
-    out.writeBoolean(strChanged);
-    if (strChanged) {
-      out.writeChars(stringVal);
-      this.strChanged = false;
-      System.out.println(" Extracted delta from field 'stringVal' = " + this.stringVal);
+
+    out.writeBoolean(strChd);
+    if (strChd) {
+      out.writeInt(strVal.length());
+      out.writeChars(strVal);
     }
   }
 
   @Override
   public void fromDelta(DataInput in) throws IOException, InvalidDeltaException {
-    System.out.println("Applying delta to " + this.toString());
-    // For each field, read whether there is a change
     if (in.readBoolean()) {
-      // Read the change and apply it to the object
-      this.intVal = in.readInt();
-      System.out.println(" Applied delta to field 'intVal' = " + this.intVal);
+      intVal = in.readInt();
+      System.out.println("Setting intVal to new value:" + intVal);
     }
     if (in.readBoolean()) {
-      String newString = "";
-      try {
-        char nextChar = in.readChar();
-        newString = newString + nextChar;
-      } catch (EOFException ex) {
-        this.stringVal = newString;
+      strVal = "";
+      int length = in.readInt();
+      for (int i = 0; i < length; i++) {
+        strVal += in.readChar();
+        System.out.println("Setting strVal to new value:" + strVal);
       }
-      System.out.println(" Applied delta to field 'stringVal' = " + this.stringVal);
     }
   }
 
-  public void setInt(int newVal) {
+  public void setIntVal(int newVal) {
+    if (newVal != intVal) {
+      this.intChd = true;
+    }
     this.intVal = newVal;
-    this.intChanged = true;
   }
 
-  public void setString(String newVal) {
-    this.stringVal = newVal;
-    this.strChanged = true;
+  public void setStrVal(String newVal) {
+    if (newVal != strVal) {
+      this.strChd = true;
+    }
+    this.strVal = newVal;
   }
 
+  public String toString() {
+    return "ValueHolder : [ intVal = " + intVal + ", intChd = " + intChd + ", strVal = " + strVal
+        + ", strChd = " + strChd + " ]";
+  }
 }

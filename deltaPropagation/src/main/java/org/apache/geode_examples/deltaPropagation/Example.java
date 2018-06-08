@@ -19,39 +19,95 @@ import org.apache.geode.cache.client.ClientCache;
 import org.apache.geode.cache.client.ClientCacheFactory;
 import org.apache.geode.cache.client.ClientRegionFactory;
 import org.apache.geode.cache.client.ClientRegionShortcut;
+import org.jgroups.util.ByteArrayDataInputStream;
+import org.jgroups.util.ByteArrayDataOutputStream;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
 public class Example {
-  public final String KEY = "entry";
 
-  public static void main(String[] args) {
+  private Region<String, ValueHolder> region;
+  private ClientCache cache;
+  private static String[] STRING_VALS = {"abc", "def", "abcdef"};
+  private static String KEY = "Example Entry";
+
+  private void init() {
     // connect to the locator using default port 10334
-    ClientCache cache = new ClientCacheFactory().addPoolLocator("127.0.0.1", 10334)
-        .set("log-level", "WARN").create();
+    cache = new ClientCacheFactory().addPoolLocator("127.0.0.1", 10334).set("log-level", "WARN")
+        .create();
 
-    Example example = new Example();
-
-    // create a local region that matches the server region
     ClientRegionFactory<String, ValueHolder> clientRegionFactory =
         cache.createClientRegionFactory(ClientRegionShortcut.PROXY);
-    Region<String, ValueHolder> region = clientRegionFactory.create("example-region");
 
-    ValueHolder valueHolder = example.putEntry(region);
+    region = clientRegionFactory.create("example-region");
+  }
 
-    example.changeEntry(region, valueHolder);
+  private void run() throws InterruptedException, IOException {
+    ValueHolder valueHolder = new ValueHolder();
+    region.put(KEY, valueHolder);
 
+    Thread.sleep(500);
+    System.out.println("Putting again with no changes:");
+    valueHolder = changeEntry(valueHolder, 0, "");
+
+    Thread.sleep(500);
+    System.out.println("Putting with changed int:");
+    valueHolder = changeEntry(valueHolder, 1, "");
+
+    Thread.sleep(500);
+    System.out.println("Putting again with changed String:");
+    valueHolder = changeEntry(valueHolder, 1, "Hello World");
+
+    Thread.sleep(500);
+    System.out.println("Putting again, changing both:");
+    changeEntry(valueHolder, 2, "Goodbye");
+  }
+
+  private void close() {
     cache.close();
   }
 
+  public static void main(String[] args) throws InterruptedException, IOException {
+    Example example = new Example();
 
-  public ValueHolder putEntry(Region<String, ValueHolder> region) {
-    ValueHolder valueHolder = new ValueHolder();
-    region.put(KEY, valueHolder);
-    return valueHolder;
+    example.init();
+
+    example.run();
+
+    example.close();
   }
 
-  public void changeEntry(Region<String, ValueHolder> region, ValueHolder valueHolder) {
-    valueHolder.setInt(1);
-    valueHolder.setString("abc");
+
+  private ValueHolder changeEntry(ValueHolder valueHolder, int newInt, String newString)
+      throws IOException {
+    System.out.println("valueHolder = " + valueHolder.toString());
+
+    valueHolder.setIntVal(newInt);
+
+    valueHolder.setStrVal(newString);
+
+    System.out.println("changed valueHolder = " + valueHolder.toString());
+    System.out.println("Sending Changes to Server");
+
+    DataOutput out = new ByteArrayDataOutputStream();
+    ValueHolder newValueHolder = new ValueHolder();
+
+    if (valueHolder.hasDelta()) {
+      try {
+        valueHolder.toDelta(out);
+        DataInput in = new ByteArrayDataInputStream(((ByteArrayDataOutputStream) out).buffer());
+        newValueHolder.fromDelta(in);
+      } catch (Exception ex) {
+        throw ex;
+      }
+    }
+
     region.put(KEY, valueHolder);
+
+    System.out.println("\n");
+
+    return newValueHolder;
   }
 }
