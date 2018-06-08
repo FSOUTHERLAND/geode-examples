@@ -48,7 +48,6 @@ public class Example {
   public ValueHolder putEntries(Region<String, ValueHolder> region) {
     ValueHolder valueHolder = new ValueHolder();
     region.put(KEY, valueHolder);
-    }
   }
 
   public void changeEntry(Region<String, ValueHolder> region, ValueHolder valueHolder) {

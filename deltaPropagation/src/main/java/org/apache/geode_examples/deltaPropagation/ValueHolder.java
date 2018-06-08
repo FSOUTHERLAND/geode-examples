@@ -5,6 +5,7 @@ import org.apache.geode.InvalidDeltaException;
 
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.EOFException;
 import java.io.IOException;
 
 public class ValueHolder implements Delta {
@@ -42,12 +43,39 @@ public class ValueHolder implements Delta {
         if (strChanged) {
             out.writeChars(stringVal);
             this.strChanged = false;
-            System.out.println(" Extracted delta from field 'doubleVal' = "
+            System.out.println(" Extracted delta from field 'stringVal' = "
                 + this.stringVal);
         }
     }
 
     @Override public void fromDelta(DataInput in) throws IOException, InvalidDeltaException {
-
+        System.out.println("Applying delta to " + this.toString());
+        // For each field, read whether there is a change
+        if (in.readBoolean()) {
+            // Read the change and apply it to the object
+            this.intVal = in.readInt();
+            System.out.println(" Applied delta to field 'intVal' = " + this.intVal);
+        }
+        if (in.readBoolean()) {
+            String newString = "";
+            try {
+                char nextChar = in.readChar();
+                newString = newString + nextChar;
+            } catch (EOFException ex) {
+                this.stringVal = newString;
+            }
+            System.out.println(" Applied delta to field 'stringVal' = " + this.stringVal);
+        }
     }
+
+    public void setIntVal(int newVal) {
+        this.intVal = newVal;
+        this.intChanged = true;
+    }
+
+    public void setStringVal(String newVal) {
+        this.stringVal = newVal;
+        this.strChanged = true;
+    }
+
 }
